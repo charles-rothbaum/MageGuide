@@ -69,7 +69,7 @@ def takeoff(drone, mocap_connection, init_time, takeoff_alt):
     # 6 = rtl
     # 7 = circle
     # Tell the drone to enter one of these modes:
-    flight_mode = 2
+    flight_mode = 4
     drone.mav.set_mode_send(drone.target_system, mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, flight_mode) 
 
     # arm throttle:
@@ -84,7 +84,7 @@ def takeoff(drone, mocap_connection, init_time, takeoff_alt):
     print(msg) #"result: 0" if it executed without error. If you get result: 4, you probably need to set the copter to guided mode.
 
     # Give the drone time to start up
-    time.sleep(2)
+    time.sleep(5)
 
     # Send takeoff command to target altitude.
     # reminder - the first 0 isn't a parameter, it is the configuration
@@ -114,10 +114,12 @@ def takeoff(drone, mocap_connection, init_time, takeoff_alt):
     print("Attempting Takeoff:")
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
     drone.mav.command_long_send(drone.target_system, drone.target_component, 
-                                mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 30, 0, 0, 0, 0, 0, 0, takeoff_alt)
+                                mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, takeoff_alt)
     receive_mav_message(drone)
     print("Finished takeoff script")
-
+    time.sleep(.5)
+    # flight_mode = 2
+    # drone.mav.set_mode_send(drone.target_system, mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED, flight_mode) 
     # Delay until we reach the desired altitude
     # We must update the via mocap repeatedly
     #msg_interval = 0.075 # seconds
@@ -148,7 +150,38 @@ def takeoff(drone, mocap_connection, init_time, takeoff_alt):
     #             break
     # return
 
+def goto_NED_point(drone_connection, x, y, z, init_time, accuracy):
+    # 3576 position
+    # 3527 velocity 
+    # 3135 acceleration
+    # 3520 position + vel
+    # 3072 pos + vel + acc
+    # 2559 yaw 
+    # 1535 yaw rate
+    # For both yaw and yaw rate must include at least pos vel or acc 
+    position_mask = int(3576) # use position
+    time_us = int((time.time()-init_time) * 1.0e6)
+    drone_connection.mav.set_position_target_local_ned_send(time_us, drone_connection.target_system, drone_connection.target_component, 1, position_mask, x, y, z, 0, 0, 0, 0, 0, 0, 0, 0)
+    #drone_connection.mav.request_data_stream_send(drone_connection.target_system, drone_connection.target_component, mavutil.mavlink.MAV_DATA_STREAM_POSITION,1,1)
 
+    while True:
+        message = drone_connection.recv_match(type='LOCAL_POSITION_NED', blocking=True)
+        if message:
+            drone_x = message.x
+            drone_y = message.y
+            drone_z = message.z 
+            #print(f"X: {drone_x}, Y: {drone_y}, Z: {drone_z}") 
+            if abs(x-drone_x) < accuracy and abs(y-drone_y) < accuracy and abs(z-drone_z) < accuracy:
+                print("Drone has reached position")
+                break
+    return
+
+
+
+
+def disarm(drone_connection):
+    drone_connection.mav.command_long_send(drone_connection.target_system, drone_connection.target_component, 
+                                 mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, 0, 0, 0, 0, 0, 0, 0, 0)
 
 ###-------------------------------------------------------------------------------------###
 ###                              Set GPS Origin                                         ###
@@ -223,11 +256,36 @@ class threaded_mocap_streaming(threading.Thread):
 
             # Get info from mocap
             [drone_pos, drone_rot] = self.mocap_connection.rigid_body_dict[1]
-            # print(f"Current altitude (m): {drone_pos[1]}")
+            #print(f"Current altitude (m): {drone_pos[1]}")
 
             # Update drone's current state
             update_drone_state(self.drone_connection, time.time()-self.init_time, drone_pos, drone_rot)
         
+        return
+
+###-------------------------------------------------------------------------------------###
+###                              Flight Controller Position Thread                      ###
+###-------------------------------------------------------------------------------------###
+#class definition
+class threaded_postion_report(threading.Thread):
+    #Constructor for class
+    def __init__(self, thread_name, thread_ID, drone_connection, init_time):
+        threading.Thread.__init__(self)
+        self.setDaemon(True)
+        self.thread_name = thread_name
+        self.threadID = thread_ID
+        self.drone_connection = drone_connection
+        self.init_time = init_time
+    # get drone postion Loop
+    def run(self):
+        #Request GLOBAL_POSITION_INT message be sent at regular interval
+        self.drone_connection.mav.request_data_stream_send(self.drone_connection.target_system, self.drone_connection.target_component, mavutil.mavlink.MAV_DATA_STREAM_POSITION,1,1)
+        while True:
+            message = self.drone_connection.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
+            if message:
+                altitude_amsl = message.alt / 1000.0
+                relative_altitude = message.relative_alt /1000.0
+                print(f"Altitude above mean sea level: {altitude_amsl} meters, Relative Altitude: {relative_altitude} meters") 
         return
 
 ###-------------------------------------------------------------------------------------###
