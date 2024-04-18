@@ -256,11 +256,15 @@ class threaded_mocap_streaming(threading.Thread):
             time.sleep(pause_between_updates)
 
             # Get info from mocap
-            [drone_pos, drone_rot] = self.mocap_connection.rigid_body_dict[self.rigid_body_id]
+            [self.drone_pos, self.drone_rot] = self.mocap_connection.rigid_body_dict[self.rigid_body_id]
             #print(f"Current altitude (m): {drone_pos[1]}")
+            #print("Mocap Drone Position: /n")
+            #print(f"Current y (m): {self.drone_pos[1]}")
+            #print(f"Current z (m): {self.drone_pos[0]}")
+            #print(f"Current x (m): {self.drone_pos[2]}")
 
             # Update drone's current state
-            update_drone_state(self.drone_connection, time.time()-self.init_time, drone_pos, drone_rot)
+            update_drone_state(self.drone_connection, time.time()-self.init_time, self.drone_pos, self.drone_rot)
         
         return
 
@@ -282,11 +286,13 @@ class threaded_postion_report(threading.Thread):
         #Request GLOBAL_POSITION_INT message be sent at regular interval
         self.drone_connection.mav.request_data_stream_send(self.drone_connection.target_system, self.drone_connection.target_component, mavutil.mavlink.MAV_DATA_STREAM_POSITION,1,1)
         while True:
-            message = self.drone_connection.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
+            message = self.drone_connection.recv_match(type='LOCAL_POSITION_NED', blocking=True)
             if message:
-                altitude_amsl = message.alt / 1000.0
-                relative_altitude = message.relative_alt /1000.0
-                print(f"Altitude above mean sea level: {altitude_amsl} meters, Relative Altitude: {relative_altitude} meters") 
+                print("FC position: ")
+                #print(f"Current y (m): {message.y}")
+                #print(f"Current z (m): {message.z}")
+                #print(f"Current x (m): {message.x}")
+
         return
 
 ###-------------------------------------------------------------------------------------###

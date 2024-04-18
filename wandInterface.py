@@ -27,9 +27,9 @@ class mocap_streaming_thread(threading.Thread):
 
             [self.wand_pos, self.wand_rot] = self.mocap_connection.rigid_body_dict[self.rigid_body_id]
 
-            print(f"Current y (m): {self.wand_pos[1]}")
-            print(f"Current z (m): {self.wand_pos[0]}")
-            print(f"Current x (m): {self.wand_pos[2]}")
+            #print(f"Current y (m): {self.wand_pos[1]}")
+            #print(f"Current z (m): {self.wand_pos[0]}")
+            #print(f"Current x (m): {self.wand_pos[2]}")
 
 
         return
@@ -73,8 +73,12 @@ is_running = streaming_client.run()
 drone_connection = drone_connect(14550)
 set_drone_gps_global_origin(drone_connection)
 
+#FC_position_stream = threaded_postion_report("stream3", 3, drone_connection, init_time)
+#FC_position_stream.start()
+
 wand_stream = mocap_streaming_thread("stream1", 1, streaming_client, init_time, wand_streaming_id)
 wand_stream.start()
+
 
 time.sleep(1)
 
