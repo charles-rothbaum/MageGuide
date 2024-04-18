@@ -255,7 +255,7 @@ class threaded_mocap_streaming(threading.Thread):
             time.sleep(pause_between_updates)
 
             # Get info from mocap
-            [drone_pos, drone_rot] = self.mocap_connection.rigid_body_dict[1]
+            [drone_pos, drone_rot] = self.mocap_connection.rigid_body_dict[self.threadID]
             #print(f"Current altitude (m): {drone_pos[1]}")
 
             # Update drone's current state

@@ -10,7 +10,7 @@ import time
 import threading
 
 class mocap_streaming_thread(threading.Thread):
-    def __init__(self, thread_name, thread_ID, mocap_connection, init_time):
+    def __init__(self, thread_name, thread_ID, mocap_connection, init_tim, rigid_body_id):
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.thread_name = thread_name
@@ -19,12 +19,13 @@ class mocap_streaming_thread(threading.Thread):
         self.init_time = init_time
         self.wand_pos = None
         self.wand_rot = None
+        self.rigid_body_id = rigid_body_id
 
     def run(self):
         while True:
             time.sleep(.1)
 
-            [self.wand_pos, self.wand_rot] = self.mocap_connection.rigid_body_dict[2]
+            [self.wand_pos, self.wand_rot] = self.mocap_connection.rigid_body_dict[self.rigid_body_id]
 
             #print(f"Current y (m): {self.wand_pos[1]}")
             #print(f"Current z (m): {self.wand_pos[0]}")
@@ -63,8 +64,8 @@ def reset_wand_position_origin():
 
     
 init_time = time.time()
-drone_streaming_id = 2
-wand_streaming_id = 1
+drone_streaming_id = 5
+wand_streaming_id = 4
 
 streaming_client = mocap_connect()
 is_running = streaming_client.run()
@@ -72,23 +73,25 @@ is_running = streaming_client.run()
 drone_connection = drone_connect(14550)
 set_drone_gps_global_origin(drone_connection)
 
-wand_stream = mocap_streaming_thread("stream1", wand_streaming_id, streaming_client, init_time)
+wand_stream = mocap_streaming_thread("stream1", 1, streaming_client, init_time, wand_streaming_id)
 wand_stream.start()
 
-initial_position_offset_x = 0
-initial_position_offset_y = 0
-initial_position_offset_z = 0
+time.sleep(1)
 
-reset_wand_position_origin()
+#initial_position_offset_x = 0
+#initial_position_offset_y = 0
+#initial_position_offset_z = 0
+
+#reset_wand_position_origin()
 
 time.sleep(1)
 
-drone_stream = threaded_mocap_streaming("stream2", drone_streaming_id, drone_connection, streaming_client, init_time)
+drone_stream = threaded_mocap_streaming("stream2", 2, drone_connection, streaming_client, init_time, drone_streaming_id)
 drone_stream.start()
 
-#time.sleep(3)
-#takeoff(drone_connection, streaming_client, init_time, .5)
-time.sleep(1)
+time.sleep(3)
+takeoff(drone_connection, streaming_client, init_time, .5)
+time.sleep(5)
 
 while(is_running):
     if(check_for_movement(threshold = 0.01, interval_ms = 10)):
@@ -99,9 +102,9 @@ while(is_running):
         box_length = 3
         scale = 1
 
-        scaled_wand_pos_x = scale * (wand_stream.wand_pos[2] - initial_position_offset_x)
-        scaled_wand_pos_y = scale * (wand_stream.wand_pos[0] - initial_position_offset_y)
-        scaled_wand_pos_z = scale * (wand_stream.wand_pos[1] - initial_position_offset_z)
+        scaled_wand_pos_x = scale * (wand_stream.wand_pos[2])
+        scaled_wand_pos_y = scale * (wand_stream.wand_pos[0])
+        scaled_wand_pos_z = scale * (wand_stream.wand_pos[1])
 
         if (scaled_wand_pos_x < box_length and scaled_wand_pos_x > -box_length):
             x = scaled_wand_pos_x
@@ -111,7 +114,8 @@ while(is_running):
         #    x = 2 * stream.wand_pos[2]
 
         print(f"going to {x}, {y}")
-        goto_NED_point(drone_connection, x, -y, -.5, init_time, accuracy=.5)
+        goto_NED_point(drone_connection, y, x, -.5, init_time, accuracy=.5)
+
 
         time.sleep(.8)
     else:
@@ -120,7 +124,9 @@ while(is_running):
             print(i + "seconds")
             time.sleep(1)
         print("no wand detected - returning home")
-        goto_NED_point(drone_connection, 0, 0, -1, init_time, accuracy=.05)
+        goto_NED_point(drone_connection, 0, 0, -.5, init_time, accuracy=.05)
         land(drone_connection)
+
+
 
 time.sleep(30)
