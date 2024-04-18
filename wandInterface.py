@@ -10,7 +10,7 @@ import time
 import threading
 
 class mocap_streaming_thread(threading.Thread):
-    def __init__(self, thread_name, thread_ID, mocap_connection, init_tim, rigid_body_id):
+    def __init__(self, thread_name, thread_ID, mocap_connection, init_time, rigid_body_id):
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.thread_name = thread_name
@@ -27,9 +27,9 @@ class mocap_streaming_thread(threading.Thread):
 
             [self.wand_pos, self.wand_rot] = self.mocap_connection.rigid_body_dict[self.rigid_body_id]
 
-            #print(f"Current y (m): {self.wand_pos[1]}")
-            #print(f"Current z (m): {self.wand_pos[0]}")
-            #print(f"Current x (m): {self.wand_pos[2]}")
+            print(f"Current y (m): {self.wand_pos[1]}")
+            print(f"Current z (m): {self.wand_pos[0]}")
+            print(f"Current x (m): {self.wand_pos[2]}")
 
 
         return

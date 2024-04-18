@@ -229,7 +229,7 @@ def update_drone_state(drone, connection_time, drone_pos, drone_rot):
 #class definition
 class threaded_mocap_streaming(threading.Thread):
     #Constructor for class
-    def __init__(self, thread_name, thread_ID, drone_connection, mocap_connection, init_time):
+    def __init__(self, thread_name, thread_ID, drone_connection, mocap_connection, init_time, rigid_body_id):
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.thread_name = thread_name
@@ -237,6 +237,7 @@ class threaded_mocap_streaming(threading.Thread):
         self.drone_connection = drone_connection
         self.mocap_connection = mocap_connection
         self.init_time = init_time
+        self.rigid_body_id = rigid_body_id
     # Streaming Loop
     def run(self):
         """ Initialize the drone's GPS, this requires a few updates of the drone's position
@@ -255,7 +256,7 @@ class threaded_mocap_streaming(threading.Thread):
             time.sleep(pause_between_updates)
 
             # Get info from mocap
-            [drone_pos, drone_rot] = self.mocap_connection.rigid_body_dict[self.threadID]
+            [drone_pos, drone_rot] = self.mocap_connection.rigid_body_dict[self.rigid_body_id]
             #print(f"Current altitude (m): {drone_pos[1]}")
 
             # Update drone's current state
